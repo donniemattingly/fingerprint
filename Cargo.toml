@@ -1,0 +1,13 @@
+[package]
+name = "fingerprint"
+version = "0.1.0"
+authors = ["Donnie Mattingly <donniewmattingly@gmail.com>"]
+
+[dependencies]
+hound = "3.3.0"
+goertzel = "0.2.0"
+image = "0.18.0"
+rustfft = "2.0.0"
+num-complex = "0.1.41"
+apodize = "0.2.0"
+nalgebra = "0.13.1"
