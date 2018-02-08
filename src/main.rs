@@ -15,12 +15,16 @@ use apodize::{hanning_iter, hamming_iter, nuttall_iter};
 #[macro_use]
 extern crate nalgebra;
 use nalgebra::core::{MatrixMN, Dynamic};
+use nalgebra::core::coordinates::XY;
 
 fn main() {
     // println!("Hello, world!");
     draw("440.wav", "image.png");
 }
 
+type MatrixDD = MatrixMN<f32, Dynamic, Dynamic>;
+
+const minIntensity: f32 = 0.50;
 
 fn draw<P: AsRef<std::path::Path>>(wav: P, image: P) {
     let mut reader = hound::WavReader::open(wav).unwrap();
@@ -103,11 +107,7 @@ fn draw<P: AsRef<std::path::Path>>(wav: P, image: P) {
         intensity_cols.push(intensity_col);
     }
 
-    type MatrixDD = MatrixMN<f32, Dynamic, Dynamic>;
-    let intensity_matrix = MatrixDD::from_row_slice(img_size, image_lines, &intensity_data);
-
-    println!("rows: {} cols: {}", intensity_matrix.nrows(), intensity_matrix.ncols());
-    
+    get_peaks(intensity_cols);
     
     println!("Saving image sized {} x {} (needs buffer of {})", img_size, image_lines, img_size * image_lines);
     println!("With a buffer of len {}", image_data.len());
@@ -115,6 +115,20 @@ fn draw<P: AsRef<std::path::Path>>(wav: P, image: P) {
         Ok(v) => println!("Success"),
         Err(e) => println!("{}", e),
     }
+}
 
-   
+struct Coord(i32, i32);
+
+fn get_peaks(intensity: Vec<Vec<f32>>) -> Vec<Coord> {
+
+    let w = intensity.len();
+    let h = &intensity[0].len();
+    
+    for i in 0..w {
+        for j in 0..*h {
+            let val = &intensity[i][j];
+        }
+    }
+
+    vec![Coord(0, 0)]
 }
