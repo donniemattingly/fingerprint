@@ -6,6 +6,7 @@ extern crate rustfft;
 use rustfft::FFTplanner;
 use rustfft::num_complex::Complex32;
 use std::thread;
+use std::fmt::{self, Formatter, Display};
 
 #[macro_use]
 extern crate apodize;
@@ -19,12 +20,12 @@ use nalgebra::core::coordinates::XY;
 
 fn main() {
     // println!("Hello, world!");
-    draw("440.wav", "image.png");
+    draw("test.wav", "image.png");
 }
 
 type MatrixDD = MatrixMN<f32, Dynamic, Dynamic>;
 
-const minIntensity: f32 = 0.50;
+const minIntensity: f32 = 0.4;
 
 fn draw<P: AsRef<std::path::Path>>(wav: P, image: P) {
     let mut reader = hound::WavReader::open(wav).unwrap();
@@ -107,8 +108,8 @@ fn draw<P: AsRef<std::path::Path>>(wav: P, image: P) {
         intensity_cols.push(intensity_col);
     }
 
-    get_peaks(intensity_cols);
-    
+    let peaks = get_peaks(intensity_cols, minIntensity);
+
     println!("Saving image sized {} x {} (needs buffer of {})", img_size, image_lines, img_size * image_lines);
     println!("With a buffer of len {}", image_data.len());
     match image::save_buffer(image, &image_data[..], img_size as u32, image_lines as u32, image::ColorType::Gray(8)) {
@@ -119,16 +120,49 @@ fn draw<P: AsRef<std::path::Path>>(wav: P, image: P) {
 
 struct Coord(i32, i32);
 
-fn get_peaks(intensity: Vec<Vec<f32>>) -> Vec<Coord> {
+impl Display for Coord{
+    fn fmt(&self, f: &mut Formatter) -> fmt::Result {
+        write!(f, "[{}, {}]", self.0, self.1)
+    }
+}
+
+fn get_peaks(intensity: Vec<Vec<f32>>, intensity_threshold: f32) -> Vec<Coord> {
 
     let w = intensity.len();
     let h = &intensity[0].len();
+
+    let mut peaks: Vec<Coord> = Vec::new();
     
-    for i in 0..w {
-        for j in 0..*h {
+    for i in 1..w-1 {
+        for j in 1..*h-1 {
             let val = &intensity[i][j];
+            match val{
+                val if val < &intensity[i-1][j+1] => (),
+                val if val < &intensity[i-1][j-1] => (),
+                val if val < &intensity[i+1][j-1] => (),
+                val if val < &intensity[i+1][j+1] => (),
+                val if val < &intensity[i][j+1] => (),
+                val if val < &intensity[i-1][j] => (),
+                val if val < &intensity[i][j-1] => (),
+                val if val < &intensity[i+1][j] => (),
+                val if val < &intensity_threshold => (),
+                val => peaks.push(Coord(i as i32, j as i32)),
+            }
         }
     }
+    
+    let possible = w * h;
+    let num_peaks = peaks.len();
+    
+    let percent_peaks = num_peaks as f32 / possible as f32;
 
-    vec![Coord(0, 0)]
+    println!("From {} possible", w * h);
+    println!("Had {} peaks", peaks.len());
+    println!("Ratio of {}", percent_peaks);
+
+    // println!("Peaks: ");
+    // for peak in &peaks{
+    //     println!("{}", peak);
+    // }
+    peaks
 }
