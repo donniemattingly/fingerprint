@@ -4,3 +4,4 @@
 *.wav
 *.png
 *.csv
+/log/
