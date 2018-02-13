@@ -19,7 +19,7 @@ pub mod spectrogram;
 fn main() {
     // println!("Hello, world!");
     log4rs::init_file("log.yaml", Default::default()).unwrap();
-    gen_spectrogram("samples/440.wav", "output/mod.png");
+    gen_spectrogram("samples/test.wav", "output/mod.png");
 }
 
 const minIntensity: f32 = 0.4;
@@ -27,6 +27,7 @@ const minIntensity: f32 = 0.4;
 fn gen_spectrogram<P: AsRef<std::path::Path>>(wav: P, image: P) {
     let spec = spectrogram::from_wav(wav);
     spec.draw(image);
+    info!("{}", spec);
 }
 
 struct Coord(i32, i32);

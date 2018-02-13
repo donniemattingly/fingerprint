@@ -14,13 +14,21 @@ use apodize::{nuttall_iter};
 pub struct Spectrogram {
     data: Vec<Vec<f32>>,
     chunk_bits: u32,
-    frequency_step: u32,
-    time_step: u32
+    frequency_step: f32,
+    time_step: f32
+}
+
+
+impl Display for Spectrogram{
+    fn fmt(&self, f: &mut Formatter) -> fmt::Result {
+        write!(f, "Spectrogram [{} s] {{chunk_bits: {}, frequency_step: {}, time_step: {}}}",
+        self.data.len() as f32 * self.time_step, self.chunk_bits, self.frequency_step, self.time_step)
+    }
 }
 
 impl Spectrogram {
 
-    pub fn new(data: Vec<Vec<f32>>, chunk_bits: u32, frequency_step: u32, time_step: u32) -> Spectrogram {
+    pub fn new(data: Vec<Vec<f32>>, chunk_bits: u32, frequency_step: f32, time_step: f32) -> Spectrogram {
         Spectrogram{data: data, chunk_bits: chunk_bits, frequency_step: frequency_step, time_step: time_step}
     }
     
@@ -128,8 +136,8 @@ pub fn from_wav<P: AsRef<Path>>(wav: P) -> Spectrogram {
     }
 
 
-    let frequency_step = sample_rate / chunk_size as u32;
-    let time_step = chunk_size as u32 * sample_rate;
+    let frequency_step = sample_rate as f32/ chunk_size as f32;
+    let time_step = chunk_size as f32 / sample_rate as f32;
 
     debug!("Produced spectrogram {} x {} with freq step: {} and time step: {}", 
            intensity_cols.len(), intensity_cols[0].len(), frequency_step, time_step);
