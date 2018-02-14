@@ -12,10 +12,10 @@ use std::fmt::{self, Formatter, Display};
 use apodize::{nuttall_iter};
 
 pub struct Spectrogram {
-    data: Vec<Vec<f32>>,
-    chunk_bits: u32,
-    frequency_step: f32,
-    time_step: f32
+    pub data: Vec<Vec<f32>>,
+    pub chunk_bits: u32,
+    pub frequency_step: f32,
+    pub time_step: f32
 }
 
 

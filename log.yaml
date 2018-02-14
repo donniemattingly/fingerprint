@@ -20,5 +20,5 @@ root:
     - stdout
 
 loggers:
-  fingerprint::spectrogram:
+  fingerprint:
     level: info
