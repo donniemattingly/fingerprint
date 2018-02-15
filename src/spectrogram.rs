@@ -1,4 +1,3 @@
-use std;
 use std::path::Path;
 
 extern crate hound;
@@ -9,6 +8,7 @@ use rustfft::FFTplanner;
 use rustfft::num_complex::Complex32;
 use std::fmt::{self, Formatter, Display};
 
+extern crate apodize;
 use apodize::{nuttall_iter};
 
 pub struct Spectrogram {
@@ -34,7 +34,7 @@ impl Spectrogram {
     
     pub fn draw<P: AsRef<Path>>(&self, image_path: P){
         info!("Drawing spectrogram");
-        let mut image_data: Vec<u8> = self.data.iter()
+        let image_data: Vec<u8> = self.data.iter()
             .flat_map(|cols| {
                 cols.iter().map(|val| {
                     (val * <u8>::max_value() as f32) as u8
@@ -45,7 +45,7 @@ impl Spectrogram {
                                  self.data[0].len() as u32, 
                                  self.data.len() as u32, 
                                  image::ColorType::Gray(8)) {
-            Ok(v) => info!("Saved image successfully"),
+            Ok(_) => info!("Saved image successfully"),
             Err(e) => error!("{}", e)
         }
     }
@@ -112,7 +112,7 @@ pub fn from_wav<P: AsRef<Path>>(wav: P) -> Spectrogram {
 
 
         // Clean up FFT output to be useful
-        for (i, val) in new_spec.iter().enumerate() {
+        for val in new_spec.iter() {
 
             // Convert from complex
             let abs_sq = (val.re.powf(2.0) + val.im.powf(2.0)) * 2.0 / f32::from(chunk_size as u16);
@@ -137,7 +137,7 @@ pub fn from_wav<P: AsRef<Path>>(wav: P) -> Spectrogram {
 
 
     let frequency_step = sample_rate as f32/ chunk_size as f32;
-    let time_step = chunk_size as f32 / sample_rate as f32;
+    let time_step = eff_chunk_size as f32 / sample_rate as f32;
 
     debug!("Produced spectrogram {} x {} with freq step: {} and time step: {}", 
            intensity_cols.len(), intensity_cols[0].len(), frequency_step, time_step);

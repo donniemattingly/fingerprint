@@ -6,6 +6,7 @@ use spectrogram::*;
 struct Coord(i32, i32);
 
 struct Peak{
+    coords: Coord,
     freq: f32,
     offset: f32,
 }
@@ -38,7 +39,7 @@ fn get_peaks(spectrogram: Spectrogram) -> Vec<Coord> {
                 val if val < &intensity[i][j-1] => (),
                 val if val < &intensity[i+1][j] => (),
                 val if val < &intensity_threshold => (),
-                val => peaks.push(Coord(i as i32, j as i32)),
+                _ => peaks.push(Coord(i as i32, j as i32)),
             }
         }
     }
