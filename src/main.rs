@@ -1,11 +1,11 @@
+extern crate apodize;
 extern crate hound;
 extern crate image;
 extern crate rustfft;
-extern crate apodize;
 
+extern crate log4rs;
 #[macro_use]
 extern crate log;
-extern crate log4rs;
 
 pub mod spectrogram;
 pub mod hash;
