@@ -4,6 +4,8 @@ use std::cmp::Ordering;
 
 use spectrogram::*;
 
+const DEFAULT_FAN_VALUE: usize = 15;
+
 struct Coord(i32, i32);
 
 struct Peak {
@@ -88,19 +90,43 @@ fn get_peaks(spectrogram: Spectrogram) -> Vec<Peak> {
     peaks
 }
 
-fn hash_peaks(mut peaks: Vec<Peak>) {
-    let sorted = peaks.sort();
+fn hash_peaks(mut peaks: Vec<Peak>) -> Vec<PeakHash> {
     // Order peaks
-    // Detect constellations
-    // hash each constellation pair
+    peaks.sort();
+    let peaks_len = peaks.len();
+    let fan_value = DEFAULT_FAN_VALUE;
+    let mut hashes: Vec<PeakHash> = Vec::new();
 
+    for (i, peak) in peaks.iter().enumerate() {
+        let p1 = &peaks[i];
+        for j in 1..fan_value {
+            match i + j {
+                k if k < peaks.len() => hashes.push(hash_peak_pair(&p1, &peaks[i + j])),
+                _ => (),
+            }
+        }
+    }
+    // hash each constellation pair
     // vec![""]
+
+    hashes
 }
 
-fn hash_peak_pair(p1: Peak, p2: Peak) {}
+struct PeakHash {
+    hash_value: String,
+    offset: f32,
+}
+
+fn hash_peak_pair(p1: &Peak, p2: &Peak) -> PeakHash {
+    PeakHash {
+        hash_value: String::new(),
+        offset: 0.0,
+    }
+}
 
 pub fn generate_fingerprints<P: AsRef<Path>>(wav: P) {
     let specgram = from_wav(wav);
     let peaks = get_peaks(specgram);
     let hashes = hash_peaks(peaks);
+    info!("Had {} hashes", hashes.len());
 }
