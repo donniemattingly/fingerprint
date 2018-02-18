@@ -14,7 +14,7 @@ fn main() {
     // println!("Hello, world!");
     log4rs::init_file("log.yaml", Default::default()).unwrap();
     // gen_spectrogram("samples/test.wav", "output/mod.png");
-    hash::generate_fingerprints("samples/440.wav");
+    hash::generate_fingerprints("samples/test.wav");
 }
 
 fn gen_spectrogram<P: AsRef<std::path::Path>>(wav: P, image: P) {

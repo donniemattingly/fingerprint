@@ -4,7 +4,10 @@ use std::cmp::Ordering;
 
 use spectrogram::*;
 
+extern crate sha1;
+
 const DEFAULT_FAN_VALUE: usize = 15;
+const DEFAULT_MIN_INTENSITY: f32 = 0.6;
 
 struct Coord(i32, i32);
 
@@ -41,7 +44,7 @@ impl Display for Coord {
 }
 
 fn get_peaks(spectrogram: Spectrogram) -> Vec<Peak> {
-    let intensity_threshold = 0.4;
+    let intensity_threshold = DEFAULT_MIN_INTENSITY;
     let intensity = spectrogram.data;
     let w = intensity.len();
     let h = &intensity[0].len();
@@ -97,6 +100,7 @@ fn hash_peaks(mut peaks: Vec<Peak>) -> Vec<PeakHash> {
     let fan_value = DEFAULT_FAN_VALUE;
     let mut hashes: Vec<PeakHash> = Vec::new();
 
+    // hash each constellation pair
     for (i, peak) in peaks.iter().enumerate() {
         let p1 = &peaks[i];
         for j in 1..fan_value {
@@ -106,8 +110,6 @@ fn hash_peaks(mut peaks: Vec<Peak>) -> Vec<PeakHash> {
             }
         }
     }
-    // hash each constellation pair
-    // vec![""]
 
     hashes
 }
@@ -118,9 +120,12 @@ struct PeakHash {
 }
 
 fn hash_peak_pair(p1: &Peak, p2: &Peak) -> PeakHash {
+    let hash_string = format!("{}|{}|{}", p1.freq, p2.freq, p2.offset - p1.offset);
+    let sha1 = sha1::Sha1::from(hash_string);
+    let hash_value = sha1.hexdigest();
     PeakHash {
-        hash_value: String::new(),
-        offset: 0.0,
+        hash_value: hash_value,
+        offset: p1.offset,
     }
 }
 

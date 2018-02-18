@@ -13,3 +13,7 @@ apodize = "0.2.0"
 nalgebra = "0.13.1"
 log = "0.4.1"
 log4rs = "0.8.0"
+
+[dependencies.sha1]
+version = "0.6.0"
+features = ["std"]
