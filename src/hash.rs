@@ -2,6 +2,9 @@ use std::path::Path;
 use std::fmt::{self, Display, Formatter};
 use std::cmp::Ordering;
 
+use std::collections::HashSet;
+extern crate rand;
+
 use spectrogram::*;
 
 extern crate sha1;
@@ -85,8 +88,8 @@ fn get_peaks(spectrogram: Spectrogram) -> Vec<Peak> {
         .iter()
         .map(move |coord| Peak {
             coord: Coord(coord.0, coord.1),
-            freq: coord.0 as f32 * frequency_step,
-            offset: coord.1 as f32 * time_step,
+            freq: coord.1 as f32 * frequency_step,
+            offset: coord.0 as f32 * time_step,
         })
         .collect();
 
@@ -114,24 +117,50 @@ fn hash_peaks(mut peaks: Vec<Peak>) -> Vec<PeakHash> {
     hashes
 }
 
-struct PeakHash {
-    hash_value: String,
-    offset: f32,
+pub struct PeakHash {
+    pub hash_value: String,
+    pub hash_string: String,
+    pub offset: f32,
 }
 
 fn hash_peak_pair(p1: &Peak, p2: &Peak) -> PeakHash {
+    let y = rand::random::<f64>();
+
     let hash_string = format!("{}|{}|{}", p1.freq, p2.freq, p2.offset - p1.offset);
+    // if (y > 0.9999) {
+    //     info!(
+    //         "f1: {} o1: {} --- f2: {} o2: {}",
+    //         p1.freq, p1.offset, p2.freq, p2.offset
+    //     );
+    // }
     let sha1 = sha1::Sha1::from(hash_string);
     let hash_value = sha1.hexdigest();
     PeakHash {
         hash_value: hash_value,
+        hash_string: format!(
+            "f1: {} f2: {} o: {}",
+            p1.freq,
+            p2.freq,
+            p2.offset - p1.offset
+        ),
         offset: p1.offset,
     }
 }
 
-pub fn generate_fingerprints<P: AsRef<Path>>(wav: P) {
+pub fn generate_fingerprints<P: AsRef<Path>>(wav: P) -> Vec<PeakHash> {
     let specgram = from_wav(wav);
+    info!("{}", specgram);
     let peaks = get_peaks(specgram);
     let hashes = hash_peaks(peaks);
-    info!("Had {} hashes", hashes.len());
+
+    // let mut offset_set = HashSet::new();
+    // for hash in &hashes {
+    //     offset_set.insert(format!("{}", hash.offset));
+    // }
+
+    // for offset in &offset_set {
+    //     info!("{}", offset);
+    // }
+
+    hashes
 }

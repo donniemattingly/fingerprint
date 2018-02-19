@@ -11,6 +11,8 @@ use std::fmt::{self, Display, Formatter};
 extern crate apodize;
 use apodize::nuttall_iter;
 
+const DEFAULT_SIZE_POW: u32 = 12;
+
 pub struct Spectrogram {
     pub data: Vec<Vec<f32>>,
     pub chunk_bits: u32,
@@ -88,7 +90,7 @@ pub fn from_wav<P: AsRef<Path>>(wav: P) -> Spectrogram {
     }
 
     // Define FFT chunk parameters
-    let size_pow: u32 = 10; // larger than 4
+    let size_pow: u32 = DEFAULT_SIZE_POW; // larger than 4
     let chunk_size = 2_usize.pow(size_pow);
     let overlap_size = 2_usize.pow(size_pow - 3) + 2_usize.pow(size_pow - 4);
     let eff_chunk_size = chunk_size - overlap_size;
