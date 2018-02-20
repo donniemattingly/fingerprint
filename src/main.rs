@@ -25,20 +25,31 @@ fn gen_spectrogram<P: AsRef<std::path::Path>>(wav: P, image: P) {
 }
 
 fn test_fingerprinting() {
-    let mut peaks_map = HashMap::new();
+    // let mut peaks_map = HashMap::new();
+    let mut multi_peaks_map = HashMap::new();
     let sample_hashes = hash::generate_fingerprints("samples/test.wav");
     let num_hashes = sample_hashes.len();
     let mut dups = 0;
     for peak in sample_hashes {
-        if (!peaks_map.contains_key(&peak.hash_value)) {
-            peaks_map.insert(peak.hash_value, peak.offset);
+        // if !peaks_map.contains_key(&peak.hash_value) {
+        //     peaks_map.insert(peak.hash_value, peak.offset);
+        // } else {
+        //     dups += 1;
+        // }
+
+        if !multi_peaks_map.contains_key(&peak.hash_value) {
+            let mut v: Vec<f32> = vec![peak.offset];
+            let boxed_v = Box::new(v);
+            multi_peaks_map.insert(peak.hash_value, boxed_v);
         } else {
-            dups += 1;
+            let mut v = &*multi_peaks_map.get(&peak.hash_value).unwrap();
+            v.push(peak.offset);
+            multi_peaks_map.insert(peak.hash_value, *v);
         }
     }
 
     info!("Had {} dup hashes out of {} total hashes", dups, num_hashes);
-    info!("Analyzing {} unique hashes", peaks_map.len());
+    // info!("Analyzing {} unique hashes", peaks_map.len());
 
     // let test1_hashes = hash::generate_fingerprints("samples/test.wav");
 
@@ -50,18 +61,42 @@ fn test_fingerprinting() {
     //     }
     // }
 
-    let test2_hashes = hash::generate_fingerprints("samples/test_3s_1.wav");
+    let test2_hashes = hash::generate_fingerprints("samples/test_1s_1.wav");
 
     let mut offsets2: Vec<(f32, f32, String)> = Vec::new();
+    let mut diffs: Vec<f32> = Vec::new();
     for peak in test2_hashes {
-        match peaks_map.get(&peak.hash_value) {
-            Some(offset) => offsets2.push((*offset, peak.offset, peak.hash_string)),
+        match multi_peaks_map.get(&peak.hash_value) {
+            Some(offset_list) => for offset in (*offset_list).iter() {
+                diffs.push(*offset - peak.offset);
+            },
             None => (),
         }
     }
 
-    info!("Had {} matches for test2", offsets2.len());
-    for (o1, o2, hash) in offsets2 {
-        info!("{}", o1 - o2);
+    diffs.sort_by(|a, b| a.partial_cmp(b).unwrap());
+    let mut diff_counts: Vec<(f32, u32)> = Vec::new();
+    let mut cur: f32 = 0.0;
+    let mut cur_count: u32 = 0;
+    for diff in diffs {
+        if (diff != cur) {
+            if (cur_count > 3) {
+                diff_counts.push((cur, cur_count));
+            }
+            cur = diff;
+            cur_count = 0;
+        } else {
+            cur_count += 1;
+        }
     }
+
+    diff_counts.sort_by(|a, b| a.1.partial_cmp(&b.1).unwrap());
+    for dc in diff_counts {
+        info!("{} - {}", dc.0, dc.1);
+    }
+
+    // info!("Had {} matches for test2", offsets2.len());
+    // for (o1, o2, hash) in offsets2 {
+    //     // info!("{}", o1 - o2);
+    // }
 }
