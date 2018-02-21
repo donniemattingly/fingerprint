@@ -51,7 +51,7 @@ fn test_fingerprinting() {
     //     }
     // }
 
-    let test2_hashes = hash::generate_fingerprints("samples/test_3s_1.wav");
+    let test2_hashes = hash::generate_fingerprints("samples/test_1s_1.wav");
 
     let mut offsets2: Vec<(f32, f32, String)> = Vec::new();
     let mut diffs: Vec<f32> = Vec::new();
@@ -70,7 +70,7 @@ fn test_fingerprinting() {
     let mut cur_count: u32 = 0;
     for diff in diffs {
         if (diff != cur) {
-            if (cur_count > 3) {
+            if (cur_count > 10) {
                 diff_counts.push((cur, cur_count));
             }
             cur = diff;
@@ -81,9 +81,17 @@ fn test_fingerprinting() {
     }
 
     diff_counts.sort_by(|a, b| a.1.partial_cmp(&b.1).unwrap());
+    let mut diff_sum: f32 = 0.0;
+    let mut tot_count: u32 = 0;
+
     for dc in diff_counts {
         info!("{} - {}", dc.0, dc.1);
+        diff_sum += dc.0 * dc.1 as f32 * dc.1 as f32;
+        tot_count += dc.1 * dc.1;
     }
+
+    let diff_avg: f32 = diff_sum / tot_count as f32;
+    info!("Estimated time_offset: {}", diff_avg);
 
     // info!("Had {} matches for test2", offsets2.len());
     // for (o1, o2, hash) in offsets2 {

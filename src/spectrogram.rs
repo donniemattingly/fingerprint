@@ -7,11 +7,12 @@ extern crate rustfft;
 use rustfft::FFTplanner;
 use rustfft::num_complex::Complex32;
 use std::fmt::{self, Display, Formatter};
+use std::sync::Arc;
 
 extern crate apodize;
 use apodize::nuttall_iter;
 
-const DEFAULT_SIZE_POW: u32 = 12;
+const DEFAULT_SIZE_POW: u32 = 10;
 
 pub struct Spectrogram {
     pub data: Vec<Vec<f32>>,
@@ -71,6 +72,52 @@ impl Spectrogram {
     }
 }
 
+fn process_chunk(chunk: &[f32], fft: Arc<FFTplanner<f32>>, sample_max: f32) {
+    let fft_copy = fft.clone();
+    let chunk_size = chunk.len();
+
+    // Apply apodization and convert to a complex number
+    let mut signal: Vec<Complex32> = chunk
+        .iter()
+        .map(|&x| x as f32)
+        .zip(nuttall_iter(chunk_size).map(|x| x as f32))
+        .map(move |(x, win)| Complex32::new(x * win, 0.0))
+        .collect();
+
+    // Create output buffer
+    let mut spectrum = vec![Complex32::new(0.0, 0.0); chunk_size];
+
+    // Perform FFT
+    fft_copy.process(&mut signal, &mut spectrum);
+
+    // Discard 1/2 since output is symmetrical
+    let half_index = spectrum.len() / 2;
+    let mut new_spec = spectrum.split_off(half_index);
+
+    let mut intensity_col: Vec<f32> = vec![];
+
+    // Clean up FFT output to be useful
+    for val in new_spec.iter() {
+        // Convert from complex
+        let abs_sq = (val.re.powf(2.0) + val.im.powf(2.0)) * 2.0 / f32::from(chunk_size as u16);
+        let divd = abs_sq / sample_max;
+
+        // Convert to dB
+        let pow = 20.0 * divd.log10();
+
+        // Convert power to a float between 0 and 1
+        let normalized: f32;
+        if pow < -120.0 {
+            normalized = 0.0;
+        } else if pow > 135.0 {
+            normalized = 1.0;
+        } else {
+            normalized = (pow + 120.0) / 255.0;
+        }
+        intensity_col.push(normalized);
+    }
+}
+
 pub fn from_wav<P: AsRef<Path>>(wav: P) -> Spectrogram {
     let mut reader = hound::WavReader::open(wav).unwrap();
     let sample_rate = reader.spec().sample_rate;
@@ -95,6 +142,9 @@ pub fn from_wav<P: AsRef<Path>>(wav: P) -> Spectrogram {
     let overlap_size = 2_usize.pow(size_pow - 3) + 2_usize.pow(size_pow - 4);
     let eff_chunk_size = chunk_size - overlap_size;
     let num_chunks = (samples.len() as f64 / eff_chunk_size as f64).trunc() as usize;
+
+    // Determine maximum possible signal value
+    let sample_max = 2.0_f32.powf(f32::from(reader.spec().bits_per_sample - 1));
 
     debug!(
         "Configuration: power of 2: {}, chunk_size: {}, overlap_size: {}, num_chunks: {}",
