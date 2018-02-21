@@ -10,6 +10,10 @@ extern crate log;
 
 use std::collections::HashMap;
 
+extern crate multimap;
+
+use multimap::MultiMap;
+
 pub mod spectrogram;
 pub mod hash;
 
@@ -26,26 +30,12 @@ fn gen_spectrogram<P: AsRef<std::path::Path>>(wav: P, image: P) {
 
 fn test_fingerprinting() {
     // let mut peaks_map = HashMap::new();
-    let mut multi_peaks_map = HashMap::new();
+    let mut multi_peaks_map = MultiMap::new();
     let sample_hashes = hash::generate_fingerprints("samples/test.wav");
     let num_hashes = sample_hashes.len();
     let mut dups = 0;
     for peak in sample_hashes {
-        // if !peaks_map.contains_key(&peak.hash_value) {
-        //     peaks_map.insert(peak.hash_value, peak.offset);
-        // } else {
-        //     dups += 1;
-        // }
-
-        if !multi_peaks_map.contains_key(&peak.hash_value) {
-            let mut v: Vec<f32> = vec![peak.offset];
-            let boxed_v = Box::new(v);
-            multi_peaks_map.insert(peak.hash_value, boxed_v);
-        } else {
-            let mut v = &*multi_peaks_map.get(&peak.hash_value).unwrap();
-            v.push(peak.offset);
-            multi_peaks_map.insert(peak.hash_value, *v);
-        }
+        multi_peaks_map.insert(peak.hash_value, peak.offset);
     }
 
     info!("Had {} dup hashes out of {} total hashes", dups, num_hashes);
@@ -61,12 +51,12 @@ fn test_fingerprinting() {
     //     }
     // }
 
-    let test2_hashes = hash::generate_fingerprints("samples/test_1s_1.wav");
+    let test2_hashes = hash::generate_fingerprints("samples/test_3s_1.wav");
 
     let mut offsets2: Vec<(f32, f32, String)> = Vec::new();
     let mut diffs: Vec<f32> = Vec::new();
     for peak in test2_hashes {
-        match multi_peaks_map.get(&peak.hash_value) {
+        match multi_peaks_map.get_vec(&peak.hash_value) {
             Some(offset_list) => for offset in (*offset_list).iter() {
                 diffs.push(*offset - peak.offset);
             },
