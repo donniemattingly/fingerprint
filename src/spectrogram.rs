@@ -3,6 +3,9 @@ use std::path::Path;
 extern crate hound;
 extern crate image;
 
+extern crate threadpool;
+use self::threadpool::ThreadPool;
+
 extern crate rustfft;
 use rustfft::FFTplanner;
 use rustfft::FFT;
@@ -11,7 +14,6 @@ use std::fmt::{self, Display, Formatter};
 
 use std::sync::Arc;
 use std::sync::Mutex;
-use std::thread;
 
 extern crate apodize;
 use apodize::nuttall_iter;
@@ -164,14 +166,17 @@ pub fn from_wav<P: AsRef<Path>>(wav: P) -> Spectrogram {
     let mut planner = FFTplanner::new(inverse);
     let fft = planner.plan_fft(chunk_size as usize);
     // let mut intensity_cols: Vec<Vec<f32>> = vec![];
-    let mut handles = vec![];
+    // let mut handles = vec![];
 
-    let mut raw: Vec<Vec<f32>> = vec![Vec::new(); num_chunks as usize];
+    let mut raw: Vec<Vec<f32>> = vec![Vec::new(); num_chunks - 1 as usize];
     let mut output: Mutex<Vec<Vec<f32>>> = Mutex::new(raw);
     let output_ref = Arc::new(output);
     let samples_ref = Arc::new(samples);
 
-    for i in 0..num_chunks {
+    let n_workers = 8;
+    let pool = ThreadPool::new(n_workers);
+
+    for i in 0..num_chunks - 1 {
         let offset = i * eff_chunk_size;
 
         // Break the input into num_chunks chunks
@@ -179,19 +184,15 @@ pub fn from_wav<P: AsRef<Path>>(wav: P) -> Spectrogram {
         let output_clone = Arc::clone(&output_ref);
         let fft_copy = Arc::clone(&fft);
 
-        let handle = thread::spawn(move || {
+        pool.execute(move || {
             let chunk = &samples_copy[offset..offset + chunk_size];
             let col = process_chunk(chunk, fft_copy, sample_max);
             let mut cols = output_clone.lock().unwrap();
             cols[i] = col;
         });
-
-        handles.push(handle);
     }
 
-    for handle in handles {
-        handle.join().unwrap();
-    }
+    pool.join();
 
     let lock = Arc::try_unwrap(output_ref).expect("Lock still has multiple owners");
     let intensity_cols = lock.into_inner().expect("Mutex cannot be locked");
