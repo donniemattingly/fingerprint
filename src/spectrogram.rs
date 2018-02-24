@@ -5,9 +5,13 @@ extern crate image;
 
 extern crate rustfft;
 use rustfft::FFTplanner;
+use rustfft::FFT;
 use rustfft::num_complex::Complex32;
 use std::fmt::{self, Display, Formatter};
+
 use std::sync::Arc;
+use std::sync::Mutex;
+use std::thread;
 
 extern crate apodize;
 use apodize::nuttall_iter;
@@ -59,6 +63,8 @@ impl Spectrogram {
             })
             .collect();
 
+        debug!("Drawing spectrogram with {} bytes", image_data.len());
+
         match image::save_buffer(
             image_path,
             &image_data[..],
@@ -72,7 +78,7 @@ impl Spectrogram {
     }
 }
 
-fn process_chunk(chunk: &[f32], fft: Arc<FFTplanner<f32>>, sample_max: f32) {
+fn process_chunk(chunk: &[i16], fft: Arc<FFT<f32>>, sample_max: f32) -> Vec<f32> {
     let fft_copy = fft.clone();
     let chunk_size = chunk.len();
 
@@ -116,6 +122,8 @@ fn process_chunk(chunk: &[f32], fft: Arc<FFTplanner<f32>>, sample_max: f32) {
         }
         intensity_col.push(normalized);
     }
+
+    intensity_col
 }
 
 pub fn from_wav<P: AsRef<Path>>(wav: P) -> Spectrogram {
@@ -155,60 +163,38 @@ pub fn from_wav<P: AsRef<Path>>(wav: P) -> Spectrogram {
     let inverse = false;
     let mut planner = FFTplanner::new(inverse);
     let fft = planner.plan_fft(chunk_size as usize);
-    let mut intensity_cols: Vec<Vec<f32>> = vec![];
+    // let mut intensity_cols: Vec<Vec<f32>> = vec![];
+    let mut handles = vec![];
 
-    for i in 0..num_chunks - 1 {
+    let mut raw: Vec<Vec<f32>> = vec![Vec::new(); num_chunks as usize];
+    let mut output: Mutex<Vec<Vec<f32>>> = Mutex::new(raw);
+    let output_ref = Arc::new(output);
+    let samples_ref = Arc::new(samples);
+
+    for i in 0..num_chunks {
         let offset = i * eff_chunk_size;
 
         // Break the input into num_chunks chunks
-        let chunk = &samples[offset..offset + chunk_size];
-        let fft_copy = fft.clone();
+        let samples_copy = Arc::clone(&samples_ref);
+        let output_clone = Arc::clone(&output_ref);
+        let fft_copy = Arc::clone(&fft);
 
-        // Apply apodization and convert to a complex number
-        let mut signal: Vec<Complex32> = chunk
-            .iter()
-            .map(|&x| x as f32)
-            .zip(nuttall_iter(chunk_size).map(|x| x as f32))
-            .map(move |(x, win)| Complex32::new(x * win, 0.0))
-            .collect();
+        let handle = thread::spawn(move || {
+            let chunk = &samples_copy[offset..offset + chunk_size];
+            let col = process_chunk(chunk, fft_copy, sample_max);
+            let mut cols = output_clone.lock().unwrap();
+            cols[i] = col;
+        });
 
-        // Create output buffer
-        let mut spectrum = vec![Complex32::new(0.0, 0.0); chunk_size];
-
-        // Perform FFT
-        fft_copy.process(&mut signal, &mut spectrum);
-
-        // Discard 1/2 since output is symmetrical
-        let half_index = spectrum.len() / 2;
-        let mut new_spec = spectrum.split_off(half_index);
-
-        // Determine maximum possible signal value
-        let sample_max = 2.0_f32.powf(f32::from(reader.spec().bits_per_sample - 1));
-
-        let mut intensity_col: Vec<f32> = vec![];
-
-        // Clean up FFT output to be useful
-        for val in new_spec.iter() {
-            // Convert from complex
-            let abs_sq = (val.re.powf(2.0) + val.im.powf(2.0)) * 2.0 / f32::from(chunk_size as u16);
-            let divd = abs_sq / sample_max;
-
-            // Convert to dB
-            let pow = 20.0 * divd.log10();
-
-            // Convert power to a float between 0 and 1
-            let normalized: f32;
-            if pow < -120.0 {
-                normalized = 0.0;
-            } else if pow > 135.0 {
-                normalized = 1.0;
-            } else {
-                normalized = (pow + 120.0) / 255.0;
-            }
-            intensity_col.push(normalized);
-        }
-        intensity_cols.push(intensity_col);
+        handles.push(handle);
     }
+
+    for handle in handles {
+        handle.join().unwrap();
+    }
+
+    let lock = Arc::try_unwrap(output_ref).expect("Lock still has multiple owners");
+    let intensity_cols = lock.into_inner().expect("Mutex cannot be locked");
 
     let frequency_step = sample_rate as f32 / chunk_size as f32;
     let time_step = eff_chunk_size as f32 / sample_rate as f32;
