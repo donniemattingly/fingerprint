@@ -9,11 +9,22 @@ use spectrogram::*;
 
 extern crate sha1;
 
+extern crate stopwatch;
+use self::stopwatch::Stopwatch;
+
+extern crate threadpool;
+use self::threadpool::ThreadPool;
+
+use std::sync::Arc;
+use std::sync::Mutex;
+
 const DEFAULT_FAN_VALUE: usize = 15;
 const DEFAULT_MIN_INTENSITY: f32 = 0.6;
 
+#[derive(Debug, Clone, Copy)]
 struct Coord(i32, i32);
 
+#[derive(Debug, Clone, Copy)]
 struct Peak {
     coord: Coord,
     freq: f32,
@@ -47,6 +58,7 @@ impl Display for Coord {
 }
 
 fn get_peaks(spectrogram: Spectrogram) -> Vec<Peak> {
+    let mut sw = Stopwatch::start_new();
     let intensity_threshold = DEFAULT_MIN_INTENSITY;
     let intensity = spectrogram.data;
     let w = intensity.len();
@@ -93,30 +105,53 @@ fn get_peaks(spectrogram: Spectrogram) -> Vec<Peak> {
         })
         .collect();
 
+    debug!("detecting peaks took {}ms", sw.elapsed_ms());
     peaks
 }
 
 fn hash_peaks(mut peaks: Vec<Peak>) -> Vec<PeakHash> {
+    let mut sw = Stopwatch::start_new();
     // Order peaks
     peaks.sort();
     let peaks_len = peaks.len();
     let fan_value = DEFAULT_FAN_VALUE;
-    let mut hashes: Vec<PeakHash> = Vec::new();
+
+    let mut output: Mutex<Vec<PeakHash>> = Mutex::new(vec![]);
+    let output_ref = Arc::new(output);
+
+    let n_workers = 8;
+    let pool = ThreadPool::new(n_workers);
 
     // hash each constellation pair
     for (i, peak) in peaks.iter().enumerate() {
-        let p1 = &peaks[i];
+        let p1 = peaks[i];
         for j in 1..fan_value {
+            let output_clone = Arc::clone(&output_ref);
             match i + j {
-                k if k < peaks.len() => hashes.push(hash_peak_pair(&p1, &peaks[i + j])),
+                k if k < peaks.len() => {
+                    let p2 = peaks[i + j].clone();
+                    pool.execute(move || {
+                        // ({
+                        let hash = hash_peak_pair(&p1, &p2);
+                        let mut hashes = output_clone.lock().unwrap();
+                        hashes.push(hash);
+                    });
+                }
                 _ => (),
             }
         }
     }
 
+    pool.join();
+
+    let lock = Arc::try_unwrap(output_ref).expect("lock still has owners");
+    let hashes = lock.into_inner().expect("Mutex cannot be locked");
+
+    debug!("Hashing peaks took {}ms", sw.elapsed_ms());
     hashes
 }
 
+#[derive(Debug)]
 pub struct PeakHash {
     pub hash_value: String,
     pub hash_string: String,

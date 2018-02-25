@@ -21,4 +21,4 @@ root:
 
 loggers:
   fingerprint:
-    level: info
+    level: debug

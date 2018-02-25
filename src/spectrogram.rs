@@ -18,6 +18,9 @@ use std::sync::Mutex;
 extern crate apodize;
 use apodize::nuttall_iter;
 
+extern crate stopwatch;
+use self::stopwatch::Stopwatch;
+
 const DEFAULT_SIZE_POW: u32 = 10;
 
 pub struct Spectrogram {
@@ -56,6 +59,7 @@ impl Spectrogram {
     }
 
     pub fn draw<P: AsRef<Path>>(&self, image_path: P) {
+        let mut sw = Stopwatch::start_new();
         info!("Drawing spectrogram");
         let image_data: Vec<u8> = self.data
             .iter()
@@ -76,7 +80,9 @@ impl Spectrogram {
         ) {
             Ok(_) => info!("Saved image successfully"),
             Err(e) => error!("{}", e),
-        }
+        };
+
+        debug!("Drawing spectrogram took {}ms", sw.elapsed_ms());
     }
 }
 
@@ -129,6 +135,7 @@ fn process_chunk(chunk: &[i16], fft: Arc<FFT<f32>>, sample_max: f32) -> Vec<f32>
 }
 
 pub fn from_wav<P: AsRef<Path>>(wav: P) -> Spectrogram {
+    let mut sw = Stopwatch::start_new();
     let mut reader = hound::WavReader::open(wav).unwrap();
     let sample_rate = reader.spec().sample_rate;
     let channels = reader.spec().channels as usize;
@@ -145,6 +152,11 @@ pub fn from_wav<P: AsRef<Path>>(wav: P) -> Spectrogram {
             samples.push(sample.unwrap());
         }
     }
+
+    debug!("Reading samples to memory took {}ms", sw.elapsed_ms());
+    sw.reset();
+
+    sw.start();
 
     // Define FFT chunk parameters
     let size_pow: u32 = DEFAULT_SIZE_POW; // larger than 4
@@ -193,6 +205,9 @@ pub fn from_wav<P: AsRef<Path>>(wav: P) -> Spectrogram {
     }
 
     pool.join();
+
+    debug!("Generating spectrogram took {}ms", sw.elapsed_ms());
+    sw.reset();
 
     let lock = Arc::try_unwrap(output_ref).expect("Lock still has multiple owners");
     let intensity_cols = lock.into_inner().expect("Mutex cannot be locked");
