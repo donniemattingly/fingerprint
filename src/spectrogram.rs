@@ -230,3 +230,24 @@ pub fn from_wav<P: AsRef<Path>>(wav: P) -> Spectrogram {
         time_step,
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn spectrogram_prints() {
+        let test_spectrogram = Spectrogram {
+            data: vec![vec![0.0]],
+            chunk_bits: 0,
+            frequency_step: 0.0,
+            time_step: 0.0,
+        };
+
+        let formatted_string = format!("{}", test_spectrogram);
+        assert_eq!(
+            "Spectrogram [0 s] {chunk_bits: 0, frequency_step: 0, time_step: 0}",
+            formatted_string
+        );
+    }
+}
