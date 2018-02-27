@@ -231,6 +231,8 @@ pub fn from_wav<P: AsRef<Path>>(wav: P) -> Spectrogram {
     }
 }
 
+use std::path::PathBuf;
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -249,5 +251,14 @@ mod tests {
             "Spectrogram [0 s] {chunk_bits: 0, frequency_step: 0, time_step: 0}",
             formatted_string
         );
+    }
+
+    #[test]
+    fn can_generate_spectrogram_from_wav() {
+        let mut d = PathBuf::from(env!("CARGO_MANIFEST_DIR"));
+        d.push("resources/1s_test_audio.wav");
+        let test_spectrogram = from_wav(d);
+        println!("{}", test_spectrogram);
+        assert!(test_spectrogram.data.len() != 0);
     }
 }

@@ -37,7 +37,7 @@ fn gen_spectrogram<P: AsRef<std::path::Path>>(wav: P, image: P) {
 fn test_fingerprinting() {
     // let mut peaks_map = HashMap::new();
     let mut multi_peaks_map = MultiMap::new();
-    let sample_hashes = hash::generate_fingerprints("samples/duke-unc-first-5.wav");
+    let sample_hashes = hash::generate_fingerprints_from_wav("samples/duke-unc-first-5.wav");
     let num_hashes = sample_hashes.len();
     let mut dups = 0;
     for peak in sample_hashes {
@@ -57,7 +57,8 @@ fn test_fingerprinting() {
     //     }
     // }
 
-    let test2_hashes = hash::generate_fingerprints("samples/duke-unc-first-5_4-7_bandpass.wav");
+    let test2_hashes =
+        hash::generate_fingerprints_from_wav("samples/duke-unc-first-5_4-7_bandpass.wav");
 
     let mut offsets2: Vec<(f32, f32, String)> = Vec::new();
     let mut diffs: Vec<f32> = Vec::new();

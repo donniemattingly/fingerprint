@@ -182,20 +182,30 @@ fn hash_peak_pair(p1: &Peak, p2: &Peak) -> PeakHash {
     }
 }
 
-pub fn generate_fingerprints<P: AsRef<Path>>(wav: P) -> Vec<PeakHash> {
+pub fn generate_fingerprints_from_wav<P: AsRef<Path>>(wav: P) -> Vec<PeakHash> {
     let specgram = from_wav(wav);
     info!("{}", specgram);
     let peaks = get_peaks(specgram);
-    let hashes = hash_peaks(peaks);
+    hash_peaks(peaks)
+}
 
-    // let mut offset_set = HashSet::new();
-    // for hash in &hashes {
-    //     offset_set.insert(format!("{}", hash.offset));
-    // }
+pub fn generate_fingerprints(spectrogram: Spectrogram) -> Vec<PeakHash> {
+    let peaks = get_peaks(spectrogram);
+    hash_peaks(peaks)
+}
 
-    // for offset in &offset_set {
-    //     info!("{}", offset);
-    // }
+use std::path::PathBuf;
 
-    hashes
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use spectrogram;
+    #[test]
+    fn can_get_fingerprints() {
+        let mut d = PathBuf::from(env!("CARGO_MANIFEST_DIR"));
+        d.push("resources/1s_test_audio.wav");
+        let specgram = spectrogram::from_wav(d);
+        let peaks = generate_fingerprints(specgram);
+        assert!(peaks.len() != 0);
+    }
 }
