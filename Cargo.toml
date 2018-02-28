@@ -22,3 +22,8 @@ stopwatch = "0.0.7"
 [dependencies.sha1]
 version = "0.6.0"
 features = ["std"]
+
+
+[lib]
+name = "fingerprint"
+crate-type = ["staticlib", "cdylib"]
