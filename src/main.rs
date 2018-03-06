@@ -23,8 +23,10 @@ pub mod hash;
 fn main() {
     log4rs::init_file("log.yaml", Default::default()).unwrap();
     let mut sw = Stopwatch::start_new();
-    test_fingerprinting();
+    // test_fingerprinting();
     debug!("Everything took {}ms", sw.elapsed_ms());
+
+    // rust_get_hashes();
     // gen_spectrogram("samples/bl.wav", "output/spec.png");
 }
 

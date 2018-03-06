@@ -23,6 +23,9 @@ pub mod hash;
 use std::os::raw::c_char;
 use std::ffi::{CStr, CString};
 
+extern crate libc;
+use libc::int32_t;
+
 #[no_mangle]
 pub extern "C" fn rust_greeting(to: *const c_char) -> *mut c_char {
     let c_str = unsafe { CStr::from_ptr(to) };
@@ -44,4 +47,24 @@ pub extern "C" fn rust_greeting_free(s: *mut c_char) {
         }
         CString::from_raw(s)
     };
+}
+
+#[no_mangle]
+pub extern "C" fn rust_compute_hashes(path: *const c_char) -> int32_t {
+    0
+}
+
+#[no_mangle]
+pub extern "C" fn rust_get_hashes_size() -> int32_t {
+    4
+}
+
+#[no_mangle]
+pub extern "C" fn rust_get_hashes() -> *mut c_char {
+    let test = vec!["test1", "test2", "test3", "test4"];
+    let transformed: Vec<*mut c_char> = test.iter()
+        .map(|val| CString::new(*val).unwrap().into_raw())
+        .collect();
+
+    unsafe { transformed[0] }
 }
